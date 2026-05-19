@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:latest
+    command: [
+      "--config", "/config/nats.conf"
+    ]
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "8222:8222"  # Monitoring port
+    volumes:
+      - ./config/nats.conf:/config/nats.conf:ro
+    networks:
+      - monitoring-net
+
+  nats-jetstream:
+    image: nats:latest
+    command: [
+      "--config", "/config/jetstream.conf"
+    ]
+    ports:
+      - "4223:4222"
+      - "8223:8222"
+    volumes:
+      - ./config/jetstream.conf:/config/jetstream.conf:ro
+      - nats_data:/data
+      - nats_stream:/stream
+    networks:
+      - monitoring-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
+      - "14250:14250"
+    networks:
+      - monitoring-net
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass "monitoring-secret"
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=monitoring-secret
+    networks:
+      - monitoring-net
+
+  collector:
+    build:
+      context: .
+      dockerfile: agents/collector/Dockerfile
+    depends_on:
+      - nats-jetstream
+    environment:
+      - NATS_URL=nats://nats-jetstream:4222
+    networks:
+      - monitoring-net
+
+  detector:
+    build:
+      context: .
+      dockerfile: agents/detector/Dockerfile
+    depends_on:
+      - nats-jetstream
+    environment:
+      - NATS_URL=nats://nats-jetstream:4222
+    networks:
+      - monitoring-net
+
+  notifier:
+    build:
+      context: .
+      dockerfile: agents/notifier/Dockerfile
+    depends_on:
+      - nats-jetstream
+    environment:
+      - NATS_URL=nats://nats-jetstream:4222
+    networks:
+      - monitoring-net
+
+  autohealer:
+    build:
+      context: .
+      dockerfile: agents/autohealer/Dockerfile
+    depends_on:
+      - nats-jetstream
+      - redis
+    environment:
+      - NATS_URL=nats://nats-jetstream:4222
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=monitoring-secret
+    networks:
+      - monitoring-net
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    depends_on:
+      - nats-jetstream
+    environment:
+      - NATS_URL=nats://nats-jetstream:4222
+    ports:
+      - "8080:8080"  # API endpoint
+    networks:
+      - monitoring-net
+
+  llm-agent:
+    build:
+      context: .
+      dockerfile: llm-agent/Dockerfile
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    networks:
+      - monitoring-net
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    networks:
+      - monitoring-net
+    volumes:
+      - ollama_data:/root/.ollama
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    depends_on:
+      - orchestrator
+      - jaeger
+    ports:
+      - "8000:8000"
+    environment:
+      - ORCHESTRATOR_URL=http://orchestrator:8080
+    networks:
+      - monitoring-net
+
+volumes:
+  nats_data:
+  nats_stream:
+  ollama_data:
+
+networks:
+  monitoring-net:
+    driver: bridge

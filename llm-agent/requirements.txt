@@ -1,0 +1,9 @@
+ollama
+langchain
+fastapi
+uvicorn
+pydantic
+requests
+
+classifier==1.0.0
+# or specific models as needed
