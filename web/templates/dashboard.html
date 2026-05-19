@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - IT Monitoring{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Stats Cards -->
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-microchip"></i> Agents</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.total_agents }}</h2>
+                        <small>Online: {{ stats.online_agents }}</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-success">
+                            <i class="fas fa-arrow-up"></i> {{ stats.online_agents }} online
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-danger h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-fire"></i> Critical Alerts</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">{{ stats.critical_alerts }}</h2>
+                        <small>Total: {{ stats.total_alerts }}</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Active
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-shield-alt"></i> Auto-healing</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">80%</h2>
+                        <small>Success rate</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-light">
+                            <i class="fas fa-check-circle"></i> Operational
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-robot"></i> LLM Analysis</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">94%</h2>
+                        <small>Accuracy</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-light">
+                            <i class="fas fa-brain"></i> AI-Powered
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- System Metrics -->
+    <div class="col-lg-8 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-line"></i> System Metrics
+                <div class="float-end">
+                    <select id="metricType" class="form-select form-select-sm" style="display: inline-block; width: auto;">
+                        <option value="cpu">CPU Usage</option>
+                        <option value="memory">Memory Usage</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="metricsChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Status -->
+    <div class="col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-server"></i> Agent Status
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Agent</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Load</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for agent in agent_status %}
+                            <tr>
+                                <td>{{ agent.id }}</td>
+                                <td><span class="badge bg-secondary">{{ agent.type }}</span></td>
+                                <td>
+                                    <span class="badge {% if agent.status == 'online' %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {{ agent.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar" role="progressbar" style="width: {{ (agent.load / 10) * 100 }}%" aria-valuenow="{{ agent.load }}" aria-valuemin="0" aria-valuemax="10"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Alerts -->
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-bell"></i> Recent Alerts
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <tbody>
+                            {% for alert in recent_alerts %}
+                            <tr class="align-middle">
+                                <td>
+                                    <span class="badge bg-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'warning' %}warning{% else %}info{% endif %}">
+                                        {{ alert.severity }}
+                                    </span>
+                                </td>
+                                <td>{{ alert.metric }}</td>
+                                <td>{{ "%.1f"|format(alert.value * 100) }}%</td>
+                                <td>{{ alert.service }}</td>
+                                <td><small>{{ alert.detected_at[:19] }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tracing Data -->
+    <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-route"></i> Recent Traces
+                <a href="{{ jaeger_url }}" target="_blank" class="btn btn-sm btn-outline-primary float-end">Jaeger UI</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <tbody>
+                            {% for trace in tracing_data %}
+                            <tr>
+                                <td><code>{{ trace.trace_id[:8] }}...</code></td>
+                                <td>{{ trace.service }}</td>
+                                <td>{{ trace.operation }}</td>
+                                <td>{{ trace.duration_ms }}ms</td>
+                                <td>{{ trace.start_time[11:19] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Sample data for the chart
+const ctx = document.getElementById('metricsChart').getContext('2d');
+let currentData = {{ system_metrics.cpu_usage.history | tojson }};
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: currentData.map(d => new Date(d.timestamp).toLocaleTimeString()),
+        datasets: [{
+            label: 'CPU Usage',
+            data: currentData.map(d => d.value * 100),
+            borderColor: 'rgb(255, 99, 132)',
+            tension: 0.1,
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                    display: true,
+                    text: 'Usage (%)'
+                }
+            }
+        }
+    }
+});
+
+// Switch between CPU and Memory metrics
+document.getElementById('metricType').addEventListener('change', function(e) {
+    const type = e.target.value;
+    if (type === 'cpu') {
+        chart.data.datasets[0].label = 'CPU Usage';
+        chart.data.datasets[0].data = {{ system_metrics.cpu_usage.history | tojson }}.map(d => d.value * 100);
+        chart.data.datasets[0].borderColor = 'rgb(255, 99, 132)';
+    } else if (type === 'memory') {
+        chart.data.datasets[0].label = 'Memory Usage';
+        chart.data.datasets[0].data = {{ system_metrics.memory_usage.history | tojson }}.map(d => d.value * 100);
+        chart.data.datasets[0].borderColor = 'rgb(54, 162, 235)';
+    }
+    chart.update();
+});
+</script>
+{% endblock %}

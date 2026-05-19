@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+jinja2
+httpx
+requests
+aiohttp
+matplotlib
+seaborn
+pandas
+
+# For OpenTelemetry
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
